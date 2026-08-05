@@ -29,7 +29,11 @@ body {
 }
 .memory-btn button {
     height: 65px !important;
-    font-size: 24px !important;
+    font-size: 22px !important;
+}
+.snake-btn button {
+    height: 50px !important;
+    font-size: 20px !important;
 }
 </style>
 """
@@ -58,11 +62,15 @@ if "content_type" not in st.session_state:
 if "selected_game" not in st.session_state:
     st.session_state.selected_game = None
 
-# 1. X-O-X State
+# 1. X-O-X State (Skorlu)
 if "xo_board" not in st.session_state:
     st.session_state.xo_board = [""] * 9
 if "xo_winner" not in st.session_state:
     st.session_state.xo_winner = None
+if "xo_score_user" not in st.session_state:
+    st.session_state.xo_score_user = 0
+if "xo_score_kai" not in st.session_state:
+    st.session_state.xo_score_kai = 0
 
 # 2. Sayı Tahmin State
 if "target_number" not in st.session_state:
@@ -72,25 +80,53 @@ if "guess_attempts" not in st.session_state:
 if "guess_feedback" not in st.session_state:
     st.session_state.guess_feedback = ""
 
-# 3. Hafıza Oyunu State
-EMOJIS = ["🍕", "🎮", "🚀", "🐱", "🍕", "🎮", "🚀", "🐱"]
+# 3. Hafıza Oyunu State (12 Kart / 6 Çift)
+EMOJIS = ["🍕", "🎮", "🚀", "🐱", "🏀", "🎧", "🍕", "🎮", "🚀", "🐱", "🏀", "🎧"]
 if "memory_cards" not in st.session_state:
     cards = EMOJIS.copy()
     random.shuffle(cards)
     st.session_state.memory_cards = cards
 if "memory_flipped" not in st.session_state:
-    st.session_state.memory_flipped = [False] * 8
+    st.session_state.memory_flipped = [False] * 12
 if "memory_selected" not in st.session_state:
     st.session_state.memory_selected = []
 if "memory_matched" not in st.session_state:
     st.session_state.memory_matched = []
 
+# 4. Sudoku Mini (4x4) State
+if "sudoku_grid" not in st.session_state:
+    st.session_state.sudoku_grid = [
+        [1, 0, 0, 4],
+        [0, 0, 2, 0],
+        [0, 3, 0, 0],
+        [2, 0, 0, 1]
+    ]
+    st.session_state.sudoku_solution = [
+        [1, 2, 3, 4],
+        [3, 4, 2, 1],
+        [4, 3, 1, 2],
+        [2, 1, 4, 3]
+    ]
+
+# 5. Yılan (Snake) Mini State
+if "snake" not in st.session_state:
+    st.session_state.snake = [(2, 2), (2, 1)]
+    st.session_state.food = (0, 3)
+    st.session_state.snake_dir = "RIGHT"
+    st.session_state.snake_score = 0
+    st.session_state.snake_game_over = False
+
 # ---------------------------------------------------------
 # OYUN MANTIKLARI VE SIFIRLAMA
 # ---------------------------------------------------------
-def reset_xo():
+def reset_xo_round():
     st.session_state.xo_board = [""] * 9
     st.session_state.xo_winner = None
+
+def reset_xo_full():
+    reset_xo_round()
+    st.session_state.xo_score_user = 0
+    st.session_state.xo_score_kai = 0
 
 def reset_guess():
     st.session_state.target_number = random.randint(1, 100)
@@ -101,11 +137,18 @@ def reset_memory():
     cards = EMOJIS.copy()
     random.shuffle(cards)
     st.session_state.memory_cards = cards
-    st.session_state.memory_flipped = [False] * 8
+    st.session_state.memory_flipped = [False] * 12
     st.session_state.memory_selected = []
     st.session_state.memory_matched = []
 
-# X-O-X Yardımcı Fonksiyonlar
+def reset_snake():
+    st.session_state.snake = [(2, 2), (2, 1)]
+    st.session_state.food = (random.randint(0, 4), random.randint(0, 4))
+    st.session_state.snake_dir = "RIGHT"
+    st.session_state.snake_score = 0
+    st.session_state.snake_game_over = False
+
+# --- Akıllı X-O-X Mantığı ---
 def check_xo_winner(board):
     lines = [(0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6)]
     for a, b, c in lines:
@@ -115,31 +158,66 @@ def check_xo_winner(board):
         return "Berabere"
     return None
 
-def xo_bot_move():
-    empty = [i for i, spot in enumerate(st.session_state.xo_board) if spot == ""]
-    if empty and st.session_state.xo_winner is None:
+def xo_smart_bot_move():
+    board = st.session_state.xo_board
+    empty = [i for i, spot in enumerate(board) if spot == ""]
+    if not empty or st.session_state.xo_winner:
+        return
+
+    # 1. KAI kazanabilir mi?
+    for spot in empty:
+        temp = board.copy()
+        temp[spot] = "O"
+        if check_xo_winner(temp) == "O":
+            board[spot] = "O"
+            st.session_state.xo_winner = check_xo_winner(board)
+            return
+
+    # 2. Oyuncunun kazanmasını engelle (Blokla)
+    for spot in empty:
+        temp = board.copy()
+        temp[spot] = "X"
+        if check_xo_winner(temp) == "X":
+            board[spot] = "O"
+            st.session_state.xo_winner = check_xo_winner(board)
+            return
+
+    # 3. Merkez boşsa merkeze oyna
+    if 4 in empty:
+        board[4] = "O"
+    else:
+        # Rastgele boş bir yere oyna
         move = random.choice(empty)
-        st.session_state.xo_board[move] = "O"
-        st.session_state.xo_winner = check_xo_winner(st.session_state.xo_board)
+        board[move] = "O"
+    
+    st.session_state.xo_winner = check_xo_winner(board)
 
 def make_xo_move(index):
     if st.session_state.xo_board[index] == "" and st.session_state.xo_winner is None:
         st.session_state.xo_board[index] = "X"
         st.session_state.xo_winner = check_xo_winner(st.session_state.xo_board)
+        
         if st.session_state.xo_winner is None:
-            xo_bot_move()
+            xo_smart_bot_move()
+            
+        # Raund bittiyse skoru güncelle
+        if st.session_state.xo_winner:
+            if st.session_state.xo_winner == "X":
+                st.session_state.xo_score_user += 1
+            elif st.session_state.xo_winner == "O":
+                st.session_state.xo_score_kai += 1
 
-# PROMPT AYARLARI (İçerik tipine göre dinamik)
+# PROMPT AYARLARI
 task_prompts = {
-    "Sigara Bırakma": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının sigara/elektronik sigara krizini atlatması için samimi bir dostsun. Kriz anındaki gerginliği 1-2 kısa cümleyle dostça göğüsledikten sonra, hemen o anki duygu durumuna özel, elini/zihnini oyalayacak 3 dakikalık net bir mikro-görev ver (Örn: fiziksel hareket, nefes egzersizi, oda değiştirme). Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
-    "Stres Yemeği": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının duygusal yeme krizlerini yöneten samimi bir dostsun. O anki mutsuzluk veya stres hissini anladığını belirt. Kendisini mutfağa yönlendirmek yerine, 3 dakikalık pürüzsüz bir zihinsel değişim görevi ver (Örn: bir bardak su içmek, soğuk suyla yüz yıkamak, zihinsel odaklanma). Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
-    "Sosyal Medya": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının telefonda doomscrolling yapmasını engelleyen gerçekçi bir dostsun. Ekran başında harcanan zamanın farkına varmasını sağla. Telefonu masaya ters bırakmasını veya 3 dakika boyunca ekrandan uzaklaşıp odadaki fiziksel nesnelere odaklanmasını iste. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.'
+    "Sigara Bırakma": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının sigara/elektronik sigara krizini atlatması için samimi bir dostsun. Kriz anındaki gerginliği 1-2 kısa cümleyle dostça göğüsledikten sonra, hemen o anki duygu durumuna özel, elini/zihnini oyalayacak 3 dakikalık net bir mikro-görev ver. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
+    "Stres Yemeği": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının duygusal yeme krizlerini yöneten samimi bir dostsun. O anki mutsuzluk veya stres hissini anladığını belirt. Kendisini mutfağa yönlendirmek yerine, 3 dakikalık zihinsel değişim görevi ver. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
+    "Sosyal Medya": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının telefonda doomscrolling yapmasını engelleyen gerçekçi bir dostsun. Telefonu masaya ters bırakmasını veya 3 dakika boyunca ekrandan uzaklaşmasını iste. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.'
 }
 
 game_prompts = {
-    "Sigara Bırakma": 'Sen "RoutineSwap" uygulamasındaki KAI\'sin. Sigara/elektronik sigara krizi gelen kullanıcıya tek cümlelik, heyecanlı ve eğlenceli bir meydan okuma yaz. "Şu an ellerini ve zihnini sigaradan uzaklaştırma vakti! Seninle mini bir oyun oynayacağız, bakalım beni yenebilecek misin?" tarzında ultra kısa bir cümle kur.',
-    "Stres Yemeği": 'Sen "RoutineSwap" uygulamasındaki KAI\'sin. Tatlı/atıştırmalık krizi gelen kullanıcıya tek cümlelik, eğlenceli bir meydan okuma yaz. "Mutfak kapısını kapat, odağımızı tamamen değiştiriyoruz! Bakalım bu mini oyunda ne kadar hızlısın?" tarzında ultra kısa bir cümle kur.',
-    "Sosyal Medya": 'Sen "RoutineSwap" uygulamasındaki KAI\'sin. Sosyal medyada takılan kullanıcıya tek cümlelik eğlenceli bir meydan okuma yaz. "Ekranı amaçsızca kaydırmayı bırak, beyin hücrelerini çalıştırma vakti! Oyun başlıyor, hazır mısın?" tarzında ultra kısa bir cümle kur.'
+    "Sigara Bırakma": 'Sen RoutineSwap KAI\'sin. Sigara krizi gelen kullanıcıya tek cümlelik heyecanlı bir meydan okuma yaz: "Ellerini ve zihnini sigaradan uzaklaştırma vakti! Bakalım bu mini oyunda beni yenebilecek misin?"',
+    "Stres Yemeği": 'Sen RoutineSwap KAI\'sin. Tatlı krizi gelen kullanıcıya tek cümlelik meydan okuma yaz: "Mutfak kapısını kapat, odağımızı değiştiriyoruz! Bakalım bu oyunda ne kadar hızlısın?"',
+    "Sosyal Medya": 'Sen RoutineSwap KAI\'sin. Sosyal medyada takılan kullanıcıya tek cümlelik meydan okuma yaz: "Ekranı kaydırmayı bırak, zihnini çalıştırma vakti! Oyun başlıyor!"'
 }
 
 # ---------------------------------------------------------
@@ -155,17 +233,18 @@ def select_routine(mode_name):
     # %50 Şansla Oyun veya Görev seç
     st.session_state.content_type = random.choice(["task", "game"])
     
-    # Oyun seçilirse peş peşe aynı oyun denk gelmesin
-    available_games = ["xox", "guess", "memory"]
+    # Genişletilmiş Oyun Havuzu
+    available_games = ["xox", "guess", "memory", "sudoku", "snake"]
     if st.session_state.selected_game in available_games:
         available_games.remove(st.session_state.selected_game)
         
     st.session_state.selected_game = random.choice(available_games)
     
     # State'leri sıfırla
-    reset_xo()
+    reset_xo_full()
     reset_guess()
     reset_memory()
+    reset_snake()
 
 with col1:
     if st.button("Bir Nefes Al\n(Sigara)", key="btn_sigara"):
@@ -189,9 +268,7 @@ if st.session_state.selected_mode:
     if st.session_state.kai_response is None:
         with st.spinner("KAI hazırlanıyor..."):
             try:
-                # İhtimale göre prompt belirle
                 system_prompt = task_prompts[st.session_state.selected_mode] if st.session_state.content_type == "task" else game_prompts[st.session_state.selected_mode]
-                
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
@@ -226,9 +303,11 @@ if st.session_state.selected_mode:
         # ---------------------------------------------------------
         elif st.session_state.content_type == "game":
             
-            # 1. OYUN: X-O-X
+            # 1. OYUN: AKILLI X-O-X (3 SKORU BULAN KAZANIR)
             if st.session_state.selected_game == "xox":
-                st.warning("🎮 **Zihnini Dağıt:** X-O-X Maçı! (Sen: X | KAI: O)")
+                st.warning("🎮 **Zihnini Dağıt:** KAI ile X-O-X Seri Maçı! (3 Skora Ulaşan Kazanaır)")
+                st.write(f"🏆 **Skor -> Sen: {st.session_state.xo_score_user} | KAI: {st.session_state.xo_score_kai}**")
+                
                 b = st.session_state.xo_board
                 for row in range(3):
                     g_cols = st.columns(3)
@@ -244,19 +323,31 @@ if st.session_state.selected_mode:
 
                 if st.session_state.xo_winner:
                     if st.session_state.xo_winner == "Berabere":
-                        st.write("🤝 Berabere bitti!")
+                        st.info("🤝 Raund berabere bitti!")
                     elif st.session_state.xo_winner == "X":
-                        st.success("🎉 Sen kazandın!")
+                        st.success("🎉 Raundu sen kazandın!")
                     else:
-                        st.error("🤖 KAI kazandı!")
-                    if st.button("Yeniden Oyna", key="btn_reset_xox"):
-                        reset_xo()
-                        st.rerun()
+                        st.error("🤖 Raundu KAI kazandı!")
+
+                    if st.session_state.xo_score_user >= 3:
+                        st.balloons()
+                        st.success("👑 TEBRİKLER! SERİYİ 3-{} KAZANDIN!".format(st.session_state.xo_score_kai))
+                        if st.button("Yeni Seri Başlat", key="btn_reset_full_xo"):
+                            reset_xo_full()
+                            st.rerun()
+                    elif st.session_state.xo_score_kai >= 3:
+                        st.error("💀 SERİYİ KAI 3-{} KAZANDI!".format(st.session_state.xo_score_user))
+                        if st.button("Rövanş İste", key="btn_reset_full_xo2"):
+                            reset_xo_full()
+                            st.rerun()
+                    else:
+                        if st.button("Sonraki Raund", key="btn_next_xo_round"):
+                            reset_xo_round()
+                            st.rerun()
 
             # 2. OYUN: SAYI TAHMİN
             elif st.session_state.selected_game == "guess":
                 st.warning("🎮 **Zihnini Dağıt:** KAI 1 ile 100 arasında bir sayı tuttu!")
-                
                 user_guess = st.number_input("Tahminin:", min_value=1, max_value=100, step=1, key="num_guess_input")
                 if st.button("Tahmin Et", key="btn_submit_guess"):
                     st.session_state.guess_attempts += 1
@@ -276,15 +367,15 @@ if st.session_state.selected_mode:
                     else:
                         st.info(st.session_state.guess_feedback)
 
-            # 3. OYUN: HAFIZA / EŞLEŞTİRME OYUNU
+            # 3. OYUN: ZORLAŞTIRILMIŞ HAFIZA OYUNU (12 Kart / 6 Çift)
             elif st.session_state.selected_game == "memory":
-                st.warning("🎮 **Zihnini Dağıt:** Aynı emojileri bulup kartları eşleştir!")
+                st.warning("🎮 **Zihnini Dağıt:** 6 Eşleşmeyi Bul! Emojileri Hatırla.")
                 
                 cards = st.session_state.memory_cards
                 flipped = st.session_state.memory_flipped
                 matched = st.session_state.memory_matched
 
-                for row in range(2):
+                for row in range(3):
                     m_cols = st.columns(4)
                     for col_idx in range(4):
                         idx = row * 4 + col_idx
@@ -313,9 +404,90 @@ if st.session_state.selected_mode:
                         st.session_state.memory_selected = []
                         st.rerun()
 
-                if len(st.session_state.memory_matched) == 8:
+                if len(st.session_state.memory_matched) == 12:
                     st.balloons()
-                    st.success("🎉 Harika! Bütün eşleşmeleri buldun!")
+                    st.success("🎉 Harika! Bütün 6 eşleşmeyi başarmayla buldun!")
                     if st.button("Yeniden Karıştır", key="btn_reset_mem"):
                         reset_memory()
+                        st.rerun()
+
+            # 4. OYUN: MINI SUDOKU (4x4)
+            elif st.session_state.selected_game == "sudoku":
+                st.warning("🧩 **Zihnini Dağıt:** Mini 4x4 Sudoku! Her satır ve sütunda 1,2,3,4 rakamları tam 1 kez olmalı.")
+                
+                grid = st.session_state.sudoku_grid
+                cols = st.columns(4)
+                
+                # Basit doldurma arayüzü
+                for r in range(4):
+                    for c in range(4):
+                        val = grid[r][c]
+                        if val == 0:
+                            new_val = cols[c].selectbox(f"R{r+1}C{c+1}", [0, 1, 2, 3, 4], key=f"sudoku_{r}_{c}")
+                            st.session_state.sudoku_grid[r][c] = new_val
+                        else:
+                            cols[c].button(str(val), disabled=True, key=f"sudoku_dis_{r}_{c}")
+
+                if st.button("Sudoku Kontrol Et", key="btn_check_sudoku"):
+                    if st.session_state.sudoku_grid == st.session_state.sudoku_solution:
+                        st.balloons()
+                        st.success("🎉 MÜKEMMEL! Sudoku'yu doğru çözdün!")
+                    else:
+                        st.error("❌ Hatalı veya eksik rakamlar var, tekrar dene!")
+
+            # 5. OYUN: MINI YILAN (SNAKE)
+            elif st.session_state.selected_game == "snake":
+                st.warning("🐍 **Zihnini Dağıt:** Yılan Oyununda Yemleri Topla!")
+                
+                # 5x5 Izgara Çizimi
+                grid_display = [["⬜" for _ in range(5)] for _ in range(5)]
+                
+                # Yılanı ve yemi yerleştir
+                for sr, sc in st.session_state.snake:
+                    grid_display[sr][sc] = "🟩"
+                fr, fc = st.session_state.food
+                grid_display[fr][fc] = "🍎"
+                
+                for r in range(5):
+                    st.text(" ".join(grid_display[r]))
+                
+                st.write(f"Skor: **{st.session_state.snake_score}**")
+
+                # Yön Butonları
+                c_up, c_down, c_left, c_right = st.columns(4)
+                move = None
+                with c_up:
+                    if st.button("⬆️ Yukarı", key="snk_u"): move = "UP"
+                with c_down:
+                    if st.button("⬇️ Aşağı", key="snk_d"): move = "DOWN"
+                with c_left:
+                    if st.button("⬅️ Sol", key="snk_l"): move = "LEFT"
+                with c_right:
+                    if st.button("➡️ Sağ", key="snk_r"): move = "RIGHT"
+
+                if move and not st.session_state.snake_game_over:
+                    head_r, head_c = st.session_state.snake[0]
+                    if move == "UP": head_r -= 1
+                    elif move == "DOWN": head_r += 1
+                    elif move == "LEFT": head_c -= 1
+                    elif move == "RIGHT": head_c += 1
+
+                    new_head = (head_r, head_c)
+                    
+                    # Duvar kontrolü veya kendine çarpma
+                    if head_r < 0 or head_r >= 5 or head_c < 0 or head_c >= 5 or new_head in st.session_state.snake:
+                        st.session_state.snake_game_over = True
+                    else:
+                        st.session_state.snake.insert(0, new_head)
+                        if new_head == st.session_state.food:
+                            st.session_state.snake_score += 1
+                            st.session_state.food = (random.randint(0, 4), random.randint(0, 4))
+                        else:
+                            st.session_state.snake.pop()
+                    st.rerun()
+
+                if st.session_state.snake_game_over:
+                    st.error("💥 Oyunu Kaybettin!")
+                    if st.button("Yeniden Başlat", key="btn_reset_snake"):
+                        reset_snake()
                         st.rerun()
