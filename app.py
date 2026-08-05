@@ -143,8 +143,17 @@ col1, col2, col3 = st.columns(3)
 def select_routine(mode_name):
     st.session_state.selected_mode = mode_name
     st.session_state.kai_response = None
-    # Rastgele bir oyun seç (XOX, Sayı Tahmin veya Hafıza Oyunu)
-    st.session_state.selected_game = random.choice(["xox", "guess", "memory"])
+    
+    # Oyun havuzu
+    available_games = ["xox", "guess", "memory"]
+    
+    # Önceden bir oyun seçilmişse peş peşe aynısının gelmesini engelle
+    if st.session_state.selected_game in available_games:
+        available_games.remove(st.session_state.selected_game)
+        
+    st.session_state.selected_game = random.choice(available_games)
+    
+    # State'leri sıfırla
     reset_xo()
     reset_guess()
     reset_memory()
@@ -243,7 +252,6 @@ if st.session_state.selected_mode:
         elif st.session_state.selected_game == "memory":
             st.warning("🎮 **Zihnini Dağıt:** Aynı emojileri bulup kartları eşleştir!")
             
-            # 2 satır, 4 sütun
             cards = st.session_state.memory_cards
             flipped = st.session_state.memory_flipped
             matched = st.session_state.memory_matched
@@ -252,7 +260,6 @@ if st.session_state.selected_mode:
                 m_cols = st.columns(4)
                 for col_idx in range(4):
                     idx = row * 4 + col_idx
-                    # Kart kapalıysa ❓ göster, açıksa veya eşleştiyse emojiyi göster
                     card_text = cards[idx] if (flipped[idx] or idx in matched) else "❓"
                     
                     with m_cols[col_idx]:
@@ -264,7 +271,6 @@ if st.session_state.selected_mode:
                                 st.rerun()
                         st.markdown('</div>', unsafe_allow_html=True)
 
-            # 2 kart seçildiğinde kontrol
             if len(st.session_state.memory_selected) == 2:
                 idx1, idx2 = st.session_state.memory_selected
                 if cards[idx1] == cards[idx2]:
@@ -273,7 +279,7 @@ if st.session_state.selected_mode:
                     st.success("Eşleşme bulundu!")
                     st.rerun()
                 else:
-                    time.sleep(0.8)
+                    time.sleep(0.6)
                     st.session_state.memory_flipped[idx1] = False
                     st.session_state.memory_flipped[idx2] = False
                     st.session_state.memory_selected = []
