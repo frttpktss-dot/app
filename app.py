@@ -24,17 +24,17 @@ body {
 """
 st.markdown(dark_css, unsafe_allow_html=True)
 
-# Yan Menü: OpenAI API Key Girişi
-api_key = st.sidebar.text_input("OpenAI API Key", type="password")
-
-st.title("🌙 RoutineSwap")
+# API Key artık Streamlit Secrets üzerinden otomatik çekiliyor
+api_key = st.secrets.get("OPENAI_API_KEY")
 
 if not api_key:
-    st.warning("Lütfen devam etmek için sol yan menüden OpenAI API anahtarınızı girin.")
+    st.error("OpenAI API anahtarı Secrets kısmında bulunamadı. Lütfen Streamlit Cloud Secrets ayarlarınızı kontrol edin.")
     st.stop()
 
 # OpenAI İstemcisini Başlat
 client = OpenAI(api_key=api_key)
+
+st.title("🌙 RoutineSwap")
 
 # Session State Hazırlığı
 if "selected_mode" not in st.session_state:
@@ -44,9 +44,9 @@ if "kai_response" not in st.session_state:
 
 # Modlar ve Sistem Promptları
 prompts = {
-    "Sigara Bırakma": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının sigara/elektronik sigara krizini atlatması için en yakın dostu, mentörü ve sakinleştirici limanısın. Asla resmi konuşma, samimi ve sıcak bir Türkçe kullan. Kullanıcıya Fırat adıyla hitap et. Kriz anındaki gerginliği 1-2 kısa cümleyle dostça göğüsledikten sonra, hemen o anki duygu durumuna özel, elini/zihnini oyalayacak 3 dakikalık net bir mikro-görev ver. Görevi verdikten sonra cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" şeklinde bitir.',
-    "Stres Yemeği": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının duygusal yeme krizlerini ve anlık tatlı/atıştırmalık krizlerini yöneten samimi bir dostsun. Asla yargılayıcı konuşma. Kullanıcıya Fırat adıyla hitap et. O anki mutsuzluk, stres veya can sıkıntısı hissini anladığını belirt. Kendisini mutfağa veya buzdolabına yönlendirmek yerine, o an durmasını sağlayacak 3 dakikalık pürüzsüz bir zihinsel değişim görevi ver. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
-    "Sosyal Medya": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının telefonda amaçsızca kaydırma (doomscrolling) yapmasını ve dijital bağımlılık krizlerini engellemek için tasarlanmış gerçekçi bir dostsun. Kullanıcıya Fırat adıyla hitap et. Ekran başında harcanan zamanın farkına varmasını sağla ama bunu dostça yap. Telefonu hemen masaya ters bırakmasını veya 3 dakika boyunca ekrandan tamamen uzaklaşıp odadaki fiziksel nesnelere odaklanmasını iste. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.'
+    "Sigara Bırakma": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının sigara/elektronik sigara krizini atlatması için en yakın dostu, mentörü ve sakinleştirici limanısın. Asla resmi konuşma, samimi ve sıcak bir Türkçe kullan. Kriz anındaki gerginliği 1-2 kısa cümleyle dostça göğüsledikten sonra, hemen o anki duygu durumuna özel, elini/zihnini oyalayacak 3 dakikalık net bir mikro-görev ver. Görevi verdikten sonra cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" şeklinde bitir.',
+    "Stres Yemeği": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının duygusal yeme krizlerini ve anlık tatlı/atıştırmalık krizlerini yöneten samimi bir dostsun. Asla yargılayıcı konuşma. O anki mutsuzluk, stres veya can sıkıntısı hissini anladığını belirt. Kendisini mutfağa veya buzdolabına yönlendirmek yerine, o an durmasını sağlayacak 3 dakikalık pürüzsüz bir zihinsel değişim görevi ver. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.',
+    "Sosyal Medya": 'Sen "RoutineSwap" uygulamasının içindeki yapay zeka koçu KAI\'sin. Kullanıcının telefonda amaçsızca kaydırma (doomscrolling) yapmasını ve dijital bağımlılık krizlerini engellemek için tasarlanmış gerçekçi bir dostsun. Ekran başında harcanan zamanın farkına varmasını sağla ama bunu dostça yap. Telefonu hemen masaya ters bırakmasını veya 3 dakika boyunca ekrandan tamamen uzaklaşıp odadaki fiziksel nesnelere odaklanmasını iste. Cümleni "Hazırsan \'Başla\' butonuna bas, geri sayımı başlatıyorum" diyerek bitir.'
 }
 
 # Mod Seçim Butonları
@@ -100,4 +100,4 @@ if st.session_state.selected_mode:
                 timer_placeholder.metric("Kalan Süre", f"{mins:02d}:{secs:02d}")
                 time.sleep(1)
             st.balloons()
-            st.success("Harika iş çıkardın Fırat! Kriz anını atlattın.")
+            st.success("Harika iş çıkardın! Kriz anını atlattın.")
