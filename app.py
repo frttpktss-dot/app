@@ -31,12 +31,6 @@ body {
     height: 65px !important;
     font-size: 22px !important;
 }
-/* Popover içi buton genişlikleri */
-div[data-testid="stPopoverBody"] button {
-    height: 45px !important;
-    font-size: 16px !important;
-    margin-bottom: 4px;
-}
 </style>
 """
 st.markdown(dark_css, unsafe_allow_html=True)
@@ -95,35 +89,7 @@ if "memory_selected" not in st.session_state:
 if "memory_matched" not in st.session_state:
     st.session_state.memory_matched = []
 
-# 4. Sudoku Mini (4x4) State
-def get_initial_sudoku():
-    board = [
-        [1, 0, 0, 4],
-        [0, 0, 2, 0],
-        [0, 3, 0, 0],
-        [2, 0, 0, 1]
-    ]
-    locked = [
-        [True, False, False, True],
-        [False, False, True, False],
-        [False, True, False, False],
-        [True, False, False, True]
-    ]
-    solution = [
-        [1, 2, 3, 4],
-        [3, 4, 2, 1],
-        [4, 3, 1, 2],
-        [2, 1, 4, 3]
-    ]
-    return board, locked, solution
-
-if "sudoku_board" not in st.session_state:
-    b, l, s = get_initial_sudoku()
-    st.session_state.sudoku_board = b
-    st.session_state.sudoku_locked = l
-    st.session_state.sudoku_solution = s
-
-# 5. Yılan (Snake) State
+# 4. Yılan (Snake) State
 if "snake" not in st.session_state:
     st.session_state.snake = [(2, 2), (2, 1)]
     st.session_state.food = (0, 3)
@@ -155,12 +121,6 @@ def reset_memory():
     st.session_state.memory_flipped = [False] * 12
     st.session_state.memory_selected = []
     st.session_state.memory_matched = []
-
-def reset_sudoku():
-    b, l, s = get_initial_sudoku()
-    st.session_state.sudoku_board = b
-    st.session_state.sudoku_locked = l
-    st.session_state.sudoku_solution = s
 
 def reset_snake():
     st.session_state.snake = [(2, 2), (2, 1)]
@@ -247,7 +207,8 @@ def select_routine(mode_name):
     st.session_state.kai_response = None
     st.session_state.content_type = random.choice(["task", "game"])
     
-    available_games = ["xox", "guess", "memory", "sudoku", "snake"]
+    # Sudoku havuzdan çıkarıldı
+    available_games = ["xox", "guess", "memory", "snake"]
     if st.session_state.selected_game in available_games:
         available_games.remove(st.session_state.selected_game)
         
@@ -256,7 +217,6 @@ def select_routine(mode_name):
     reset_xo_full()
     reset_guess()
     reset_memory()
-    reset_sudoku()
     reset_snake()
 
 with col1:
@@ -419,69 +379,7 @@ if st.session_state.selected_mode:
                         reset_memory()
                         st.rerun()
 
-            # 4. TAMAMEN DÜZELTİLMİŞ POP-OVER MANTIKLI SUDOKU (4x4)
-            elif st.session_state.selected_game == "sudoku":
-                st.warning("🧩 **Zihnini Dağıt:** Mini 4x4 Sudoku!")
-                st.caption("📌 Kilitli olmayan karelere tıklayıp sayıyı seçebilir veya 'Temizle' yapabilirsin.")
-                
-                board = st.session_state.sudoku_board
-                locked = st.session_state.sudoku_locked
-                
-                for r in range(4):
-                    s_cols = st.columns(4)
-                    for c in range(4):
-                        val = board[r][c]
-                        is_loc = locked[r][c]
-                        
-                        with s_cols[c]:
-                            if is_loc:
-                                # Kilitli sabit hücreler
-                                st.button(f"🔒 {val}", key=f"sdk_{r}_{c}", disabled=True)
-                            else:
-                                # Kullanıcının doldurabildiği hücreler (Popover Arayüzü)
-                                label = f"✏️ {val}" if val != 0 else "➖"
-                                with st.popover(label, use_container_width=True):
-                                    st.write(f"**Hücre [{r+1}, {c+1}] Seçimi:**")
-                                    p_col1, p_col2 = st.columns(2)
-                                    with p_col1:
-                                        if st.button("1", key=f"pop_{r}_{c}_1"):
-                                            st.session_state.sudoku_board[r][c] = 1
-                                            st.rerun()
-                                        if st.button("3", key=f"pop_{r}_{c}_3"):
-                                            st.session_state.sudoku_board[r][c] = 3
-                                            st.rerun()
-                                    with p_col2:
-                                        if st.button("2", key=f"pop_{r}_{c}_2"):
-                                            st.session_state.sudoku_board[r][c] = 2
-                                            st.rerun()
-                                        if st.button("4", key=f"pop_{r}_{c}_4"):
-                                            st.session_state.sudoku_board[r][c] = 4
-                                            st.rerun()
-                                    
-                                    if st.button("❌ Temizle (Boş Bırak)", key=f"pop_{r}_{c}_clear"):
-                                        st.session_state.sudoku_board[r][c] = 0
-                                        st.rerun()
-
-                st.write("")
-                col_chk, col_rst = st.columns(2)
-                with col_chk:
-                    if st.button("✅ Kontrol Et", key="btn_check_sudoku"):
-                        # Boş hücre kontrolü
-                        has_empty = any(0 in row for row in st.session_state.sudoku_board)
-                        if has_empty:
-                            st.warning("⚠️ Henüz tüm hücreleri doldurmadın!")
-                        elif st.session_state.sudoku_board == st.session_state.sudoku_solution:
-                            st.balloons()
-                            st.success("🎉 MÜKEMMEL! Sudoku'yu doğru çözdün!")
-                        else:
-                            st.error("❌ Hatalı rakamlar var, tekrar gözden geçir!")
-                
-                with col_rst:
-                    if st.button("🔄 Tahtayı Temizle", key="btn_reset_sudoku_board"):
-                        reset_sudoku()
-                        st.rerun()
-
-            # 5. YILAN (SNAKE)
+            # 4. YILAN (SNAKE)
             elif st.session_state.selected_game == "snake":
                 st.warning("🐍 **Zihnini Dağıt:** Yılan Oyununda Yemleri Topla!")
                 
