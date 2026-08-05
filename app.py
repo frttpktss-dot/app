@@ -16,7 +16,7 @@ body {
 .stButton>button {
     color: white;
     border-radius: 12px;
-    height: 60px;
+    height: 55px;
     font-size: 16px;
     font-weight: bold;
     width: 100%;
@@ -30,6 +30,12 @@ body {
 .memory-btn button {
     height: 65px !important;
     font-size: 22px !important;
+}
+/* Popover içi buton genişlikleri */
+div[data-testid="stPopoverBody"] button {
+    height: 45px !important;
+    font-size: 16px !important;
+    margin-bottom: 4px;
 }
 </style>
 """
@@ -58,7 +64,7 @@ if "content_type" not in st.session_state:
 if "selected_game" not in st.session_state:
     st.session_state.selected_game = None
 
-# 1. X-O-X State (Skorlu)
+# 1. X-O-X State
 if "xo_board" not in st.session_state:
     st.session_state.xo_board = [""] * 9
 if "xo_winner" not in st.session_state:
@@ -76,7 +82,7 @@ if "guess_attempts" not in st.session_state:
 if "guess_feedback" not in st.session_state:
     st.session_state.guess_feedback = ""
 
-# 3. Hafıza Oyunu State (12 Kart / 6 Çift)
+# 3. Hafıza Oyunu State
 EMOJIS = ["🍕", "🎮", "🚀", "🐱", "🏀", "🎧", "🍕", "🎮", "🚀", "🐱", "🏀", "🎧"]
 if "memory_cards" not in st.session_state:
     cards = EMOJIS.copy()
@@ -91,7 +97,6 @@ if "memory_matched" not in st.session_state:
 
 # 4. Sudoku Mini (4x4) State
 def get_initial_sudoku():
-    # Sabit şablon ve başlangıç kilitli hücreler
     board = [
         [1, 0, 0, 4],
         [0, 0, 2, 0],
@@ -118,7 +123,7 @@ if "sudoku_board" not in st.session_state:
     st.session_state.sudoku_locked = l
     st.session_state.sudoku_solution = s
 
-# 5. Yılan (Snake) Mini State
+# 5. Yılan (Snake) State
 if "snake" not in st.session_state:
     st.session_state.snake = [(2, 2), (2, 1)]
     st.session_state.food = (0, 3)
@@ -127,7 +132,7 @@ if "snake" not in st.session_state:
     st.session_state.snake_game_over = False
 
 # ---------------------------------------------------------
-# OYUN MANTIKLARI VE SIFIRLAMA
+# OYUN SIFIRLAMA FONKSİYONLARI
 # ---------------------------------------------------------
 def reset_xo_round():
     st.session_state.xo_board = [""] * 9
@@ -164,7 +169,7 @@ def reset_snake():
     st.session_state.snake_score = 0
     st.session_state.snake_game_over = False
 
-# --- Akıllı X-O-X Mantığı ---
+# --- X-O-X Bot Mantığı ---
 def check_xo_winner(board):
     lines = [(0,1,2), (3,4,5), (6,7,8), (0,3,6), (1,4,7), (2,5,8), (0,4,8), (2,4,6)]
     for a, b, c in lines:
@@ -180,7 +185,6 @@ def xo_smart_bot_move():
     if not empty or st.session_state.xo_winner:
         return
 
-    # 1. KAI kazanabilir mi?
     for spot in empty:
         temp = board.copy()
         temp[spot] = "O"
@@ -189,7 +193,6 @@ def xo_smart_bot_move():
             st.session_state.xo_winner = check_xo_winner(board)
             return
 
-    # 2. Oyuncunun kazanmasını engelle (Blokla)
     for spot in empty:
         temp = board.copy()
         temp[spot] = "X"
@@ -198,7 +201,6 @@ def xo_smart_bot_move():
             st.session_state.xo_winner = check_xo_winner(board)
             return
 
-    # 3. Merkez boşsa merkeze oyna
     if 4 in empty:
         board[4] = "O"
     else:
@@ -243,7 +245,6 @@ col1, col2, col3 = st.columns(3)
 def select_routine(mode_name):
     st.session_state.selected_mode = mode_name
     st.session_state.kai_response = None
-    
     st.session_state.content_type = random.choice(["task", "game"])
     
     available_games = ["xox", "guess", "memory", "sudoku", "snake"]
@@ -271,7 +272,7 @@ with col3:
         select_routine("Sosyal Medya")
 
 # ---------------------------------------------------------
-# KAI YANITI VE DİNAMİK İÇERİK EKRANI
+# KAI YANITI VE İÇERİK EKRANI
 # ---------------------------------------------------------
 if st.session_state.selected_mode:
     st.divider()
@@ -295,9 +296,7 @@ if st.session_state.selected_mode:
     if st.session_state.kai_response:
         st.info(st.session_state.kai_response)
 
-        # ---------------------------------------------------------
-        # SENARYO A: GÖREV & TAVSİYE MODU (%50 ŞANS)
-        # ---------------------------------------------------------
+        # GÖREV MODU
         if st.session_state.content_type == "task":
             st.write("")
             if st.button("🚀 Geri Sayımı Başlat (3 Dakika)", key="btn_timer_task"):
@@ -310,14 +309,12 @@ if st.session_state.selected_mode:
                 st.balloons()
                 st.success("Harika iş çıkardın! Kriz dalgasını başarıyla atlattın.")
 
-        # ---------------------------------------------------------
-        # SENARYO B: MINI OYUN MODU (%50 ŞANS)
-        # ---------------------------------------------------------
+        # OYUN MODU
         elif st.session_state.content_type == "game":
             
-            # 1. OYUN: AKILLI X-O-X
+            # 1. X-O-X
             if st.session_state.selected_game == "xox":
-                st.warning("🎮 **Zihnini Dağıt:** KAI ile X-O-X Seri Maçı! (3 Skora Ulaşan Kazanaır)")
+                st.warning("🎮 **Zihnini Dağıt:** KAI ile X-O-X Seri Maçı! (3 Skora Ulaşan Kazanır)")
                 st.write(f"🏆 **Skor -> Sen: {st.session_state.xo_score_user} | KAI: {st.session_state.xo_score_kai}**")
                 
                 b = st.session_state.xo_board
@@ -357,7 +354,7 @@ if st.session_state.selected_mode:
                             reset_xo_round()
                             st.rerun()
 
-            # 2. OYUN: SAYI TAHMİN
+            # 2. SAYI TAHMİN
             elif st.session_state.selected_game == "guess":
                 st.warning("🎮 **Zihnini Dağıt:** KAI 1 ile 100 arasında bir sayı tuttu!")
                 user_guess = st.number_input("Tahminin:", min_value=1, max_value=100, step=1, key="num_guess_input")
@@ -379,7 +376,7 @@ if st.session_state.selected_mode:
                     else:
                         st.info(st.session_state.guess_feedback)
 
-            # 3. OYUN: HAFIZA OYUNU
+            # 3. HAFIZA OYUNU
             elif st.session_state.selected_game == "memory":
                 st.warning("🎮 **Zihnini Dağıt:** 6 Eşleşmeyi Bul!")
                 cards = st.session_state.memory_cards
@@ -422,10 +419,10 @@ if st.session_state.selected_mode:
                         reset_memory()
                         st.rerun()
 
-            # 4. OYUN: DÜZELTİLMİŞ VE YENİDEN BAŞLATILABİLİR MINI SUDOKU (4x4)
+            # 4. TAMAMEN DÜZELTİLMİŞ POP-OVER MANTIKLI SUDOKU (4x4)
             elif st.session_state.selected_game == "sudoku":
-                st.warning("🧩 **Zihnini Dağıt:** Mini 4x4 Sudoku! Boşluklara tıklayıp sayı seç/değiştir.")
-                st.caption("📌 Sabit hücreler kilitlidir. İstediğin hücreye tekrar basıp sayısını değiştirebilirsin.")
+                st.warning("🧩 **Zihnini Dağıt:** Mini 4x4 Sudoku!")
+                st.caption("📌 Kilitli olmayan karelere tıklayıp sayıyı seçebilir veya 'Temizle' yapabilirsin.")
                 
                 board = st.session_state.sudoku_board
                 locked = st.session_state.sudoku_locked
@@ -436,32 +433,55 @@ if st.session_state.selected_mode:
                         val = board[r][c]
                         is_loc = locked[r][c]
                         
-                        display_text = f"🔒 {val}" if is_loc else (str(val) if val != 0 else "➖")
-                        
                         with s_cols[c]:
                             if is_loc:
-                                st.button(display_text, key=f"sdk_{r}_{c}", disabled=True)
+                                # Kilitli sabit hücreler
+                                st.button(f"🔒 {val}", key=f"sdk_{r}_{c}", disabled=True)
                             else:
-                                # Tıklandığında sayıyı döngüsel değiştir (0 -> 1 -> 2 -> 3 -> 4 -> 0)
-                                if st.button(display_text, key=f"sdk_{r}_{c}"):
-                                    st.session_state.sudoku_board[r][c] = (val % 4) + 1
-                                    st.rerun()
+                                # Kullanıcının doldurabildiği hücreler (Popover Arayüzü)
+                                label = f"✏️ {val}" if val != 0 else "➖"
+                                with st.popover(label, use_container_width=True):
+                                    st.write(f"**Hücre [{r+1}, {c+1}] Seçimi:**")
+                                    p_col1, p_col2 = st.columns(2)
+                                    with p_col1:
+                                        if st.button("1", key=f"pop_{r}_{c}_1"):
+                                            st.session_state.sudoku_board[r][c] = 1
+                                            st.rerun()
+                                        if st.button("3", key=f"pop_{r}_{c}_3"):
+                                            st.session_state.sudoku_board[r][c] = 3
+                                            st.rerun()
+                                    with p_col2:
+                                        if st.button("2", key=f"pop_{r}_{c}_2"):
+                                            st.session_state.sudoku_board[r][c] = 2
+                                            st.rerun()
+                                        if st.button("4", key=f"pop_{r}_{c}_4"):
+                                            st.session_state.sudoku_board[r][c] = 4
+                                            st.rerun()
+                                    
+                                    if st.button("❌ Temizle (Boş Bırak)", key=f"pop_{r}_{c}_clear"):
+                                        st.session_state.sudoku_board[r][c] = 0
+                                        st.rerun()
 
+                st.write("")
                 col_chk, col_rst = st.columns(2)
                 with col_chk:
                     if st.button("✅ Kontrol Et", key="btn_check_sudoku"):
-                        if st.session_state.sudoku_board == st.session_state.sudoku_solution:
+                        # Boş hücre kontrolü
+                        has_empty = any(0 in row for row in st.session_state.sudoku_board)
+                        if has_empty:
+                            st.warning("⚠️ Henüz tüm hücreleri doldurmadın!")
+                        elif st.session_state.sudoku_board == st.session_state.sudoku_solution:
                             st.balloons()
                             st.success("🎉 MÜKEMMEL! Sudoku'yu doğru çözdün!")
                         else:
-                            st.error("❌ Hatalı veya eksik rakamlar var, tekrar gözden geçir!")
+                            st.error("❌ Hatalı rakamlar var, tekrar gözden geçir!")
                 
                 with col_rst:
-                    if st.button("🔄 Tahtayı Sıfırla", key="btn_reset_sudoku_board"):
+                    if st.button("🔄 Tahtayı Temizle", key="btn_reset_sudoku_board"):
                         reset_sudoku()
                         st.rerun()
 
-            # 5. OYUN: MINI YILAN (SNAKE)
+            # 5. YILAN (SNAKE)
             elif st.session_state.selected_game == "snake":
                 st.warning("🐍 **Zihnini Dağıt:** Yılan Oyununda Yemleri Topla!")
                 
